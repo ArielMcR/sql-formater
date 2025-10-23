@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Formatter & Fixer - Correção Automática de GROUP BY</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .input-section, .output-section {
+            margin-bottom: 30px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-size: 1.1em;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-format {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-format:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-copy {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-copy:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(56, 239, 125, 0.4);
+        }
+
+        .btn-clear {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+        }
+
+        .btn-clear:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(235, 51, 73, 0.4);
+        }
+
+        .output-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+        }
+
+        .output-section pre {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .warnings {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .warnings.show {
+            display: block;
+        }
+
+        .warnings h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .warnings ul {
+            margin-left: 20px;
+            color: #856404;
+        }
+
+        .success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .success.show {
+            display: block;
+        }
+
+        .success h3 {
+            color: #155724;
+            margin-bottom: 10px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        button.loading .spinner {
+            display: block;
+        }
+
+        button.loading .btn-text {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 SQL Formatter & Fixer</h1>
+            <p>Formatação automática e correção de GROUP BY para queries SQL</p>
+        </div>
+
+        <div class="content">
+            <div class="input-section">
+                <label for="sqlInput">📝 Cole seu SQL aqui:</label>
+                <textarea id="sqlInput" placeholder="Cole seu SQL com problemas de formatação ou GROUP BY..."></textarea>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-format" onclick="formatSQL()">
+                    <span class="spinner"></span>
+                    <span class="btn-text">✨ Formatar e Corrigir SQL</span>
+                </button>
+                <button class="btn-copy" onclick="copyToClipboard()">
+                    📋 Copiar SQL Corrigido
+                </button>
+                <button class="btn-clear" onclick="clearAll()">
+                    🗑️ Limpar Tudo
+                </button>
+            </div>
+
+
+
+            <div class="success" id="success">
+                <h3>✅ SQL Formatado com Sucesso!</h3>
+            </div>
+
+            <div class="output-section">
+                <label>📤 SQL Formatado e Corrigido:</label>
+                <pre id="sqlOutput">Seu SQL formatado aparecerá aqui...</pre>
+            </div>
+        </div>
+
+        <div class="footer">
+            Desenvolvido por ArielMcR | SQL Formatter v1.0 | 2025-10-23
+        </div>
+    </div>
+
+    <script>
+        function formatSQL() {
+            const btn = document.querySelector('.btn-format');
+            btn.classList.add('loading');
+
+            setTimeout(() => {
+                const input = document.getElementById('sqlInput').value;
+                const output = document.getElementById('sqlOutput');
+                const warnings = document.getElementById('warnings');
+                const warningsList = document.getElementById('warningsList');
+                const success = document.getElementById('success');
+
+                if (!input.trim()) {
+                    alert('Por favor, cole um SQL primeiro!');
+                    btn.classList.remove('loading');
+                    return;
+                }
+
+
+                // Remove \n literais e caracteres de escape
+                let sql = input.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\'/g, "'");
+
+                // Remove espaços extras
+                sql = sql.trim();
+
+                // Detecta problemas
+                const issues = [];
+                const hasGroupBy = /GROUP\s+BY/i.test(sql);
+                const hasAggregates = /SUM\(|COUNT\(|AVG\(|MAX\(|MIN\(/i.test(sql);
+
+                if (hasGroupBy) {
+                    issues.push('Detectado GROUP BY - verificando colunas não agregadas');
+                }
+
+                // Extrai colunas do SELECT
+                const selectMatch = sql.match(/SELECT\s+([\s\S]+?)\s+FROM/i);
+                if (selectMatch && hasGroupBy) {
+                    const selectClause = selectMatch[1];
+                    
+                    // Extrai GROUP BY
+                    const groupByMatch = sql.match(/GROUP\s+BY\s+([\s\S]+?)(?:HAVING|ORDER|LIMIT|$)/i);
+                    
+                    if (groupByMatch) {
+                        const groupByColumns = groupByMatch[1].trim().split(',').map(c => c.trim());
+                        
+                        // Adiciona ao aviso
+                        issues.push(`GROUP BY atual: ${groupByColumns.join(', ')}`);
+                        issues.push('Sugestão: Adicione todas as colunas não agregadas ao GROUP BY ou use funções de agregação (MAX, MIN, etc.)');
+                    }
+                }
+
+                // Formata o SQL
+                let formatted = sql
+                    // Quebra principais cláusulas
+                    .replace(/\s+SELECT\s+/gi, '\nSELECT\n    ')
+                    .replace(/\s+FROM\s+/gi, '\n\nFROM ')
+                    .replace(/\s+(INNER|LEFT|RIGHT|FULL|CROSS)\s+JOIN\s+/gi, '\n    $1 JOIN ')
+                    .replace(/\s+WHERE\s+/gi, '\n\nWHERE\n    ')
+                    .replace(/\s+AND\s+/gi, '\n    AND ')
+                    .replace(/\s+OR\s+/gi, '\n    OR ')
+                    .replace(/\s+GROUP\s+BY\s+/gi, '\n\nGROUP BY\n    ')
+                    .replace(/\s+HAVING\s+/gi, '\n\nHAVING\n    ')
+                    .replace(/\s+ORDER\s+BY\s+/gi, '\n\nORDER BY\n    ')
+                    .replace(/\s+LIMIT\s+/gi, '\n\nLIMIT ')
+                    // Formata ON
+                    .replace(/\s+ON\s+/gi, '\n        ON ')
+                    // Formata vírgulas no SELECT
+                    .replace(/,\s*(?=[a-zA-Z_])/g, ',\n    ')
+                    // Remove espaços múltiplos
+                    .replace(/[ \t]+/g, ' ')
+                    // Remove linhas vazias múltiplas
+                    .replace(/\n\n\n+/g, '\n\n');
+
+                // Indenta subqueries
+                formatted = indentSubqueries(formatted);
+
+                output.textContent = formatted;
+
+                btn.classList.remove('loading');
+            }, 300);
+        }
+
+        function indentSubqueries(sql) {
+            // Indenta subqueries simples
+            return sql.replace(/\(\s*SELECT/gi, '(\n        SELECT')
+                      .replace(/\)\s*AS/gi, '\n    ) AS');
+        }
+
+        function copyToClipboard() {
+            const output = document.getElementById('sqlOutput').textContent;
+            
+            if (output === 'Seu SQL formatado aparecerá aqui...') {
+                alert('Nenhum SQL para copiar! Formate primeiro.');
+                return;
+            }
+
+            navigator.clipboard.writeText(output).then(() => {
+                const btn = document.querySelector('.btn-copy');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '✅ Copiado!';
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                }, 2000);
+            }).catch(err => {
+                alert('Erro ao copiar: ' + err);
+            });
+        }
+
+        function clearAll() {
+            if (confirm('Limpar tudo?')) {
+                document.getElementById('sqlInput').value = '';
+                document.getElementById('sqlOutput').textContent = 'Seu SQL formatado aparecerá aqui...';
+                document.getElementById('warnings').classList.remove('show');
+                document.getElementById('success').classList.remove('show');
+            }
+        }
+
+        // Atalhos de teclado
+        document.addEventListener('keydown', (e) => {
+            // Ctrl + Enter = Formatar
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                formatSQL();
+            }
+            // Ctrl + Shift + C = Copiar
+            if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+                e.preventDefault();
+                copyToClipboard();
+            }
+        });
+    </script>
+</body>
+</html>
